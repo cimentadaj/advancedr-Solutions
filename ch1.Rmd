@@ -1,0 +1,9 @@
+---
+title: "Chapter 1"
+author: "Jorge Cimentada"
+date: "5/16/2019"
+output: html_document
+---
+
+
+No exercises

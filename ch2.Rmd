@@ -1,0 +1,136 @@
+---
+title: "Chapter 2"
+author: "Jorge Cimentada"
+date: "5/16/2019"
+output: html_document
+---
+
+## Quiz answers
+
+- Given the following data frame, how do I create a new column called “3” that contains the sum of 1 and 2? You may only use $, not [[. What makes 1, 2, and 3 challenging as variable names?
+
+```{r}
+df <- data.frame(runif(3), runif(3))
+names(df) <- c(1, 2)
+```
+
+Solution: 
+
+```{r}
+df$`3` <- df$`1` + df$`2`
+```
+
+- In the following code, how much memory does y occupy?
+
+```{r}
+x <- runif(1e6)
+y <- list(x, x, x)
+```
+
+Not entirely sure. I though it was the same as `x` because R shared the same memory when an object is repeated. However, it is not either that 3 times the size of `x`.
+
+For example, the size of `x` is
+
+```{r}
+object.size(x)
+```
+
+That size multiplied by three is
+
+```{r}
+(object.size(x) * 3)
+```
+
+and the size of `y` is
+
+```{r}
+object.size(y)
+```
+
+There seems to be a small diference which I am not sure where it comes from.
+
+
+- On which line does `a` get copied in the following example?
+
+```{r}
+a <- c(1, 5, 3, 2)
+b <- a
+b[[1]] <- 10
+```
+
+I'm not entirely sure. I know that for assignments (`<-`) there is an intermediate copy being made in the first line but I'm not sure whether the refer to this one. However, I do know that in the second line `b` and `a` are the same object.
+
+```{r}
+a <- c(1, 5, 3, 2)
+b <- a
+
+.Internal(inspect(a))
+.Internal(inspect(b))
+```
+Both have the same memory signature, thus occupying the same space. Moreover, once `b` is different, the memory signature changes.
+
+```{r}
+b[[1]] <- 10
+.Internal(inspect(a))
+.Internal(inspect(b))
+```
+
+Now how does this translate to memory management in R? More specifically, am I occupying more memory by having the same object with two different names?
+
+```{r}
+lobstr::mem_used()
+pryr::mem_change(a <- 1:10)
+pryr::mem_change(b <- a)
+lobstr::mem_used()
+```
+It seems like it does! However, I presume this might be extra space only allocated to the new name because it's much smaller than the increase of assigning `a`. If `a` would be copied all over again, then I assume we would see the same increas in memory.
+
+```{r}
+library(lobstr)
+set.seed(1014)
+```
+
+Exercises 2.2.2
+
+- Explain the relationship between a, b, c and d in the following code:
+
+```{r}
+a <- 1:10
+b <- a
+c <- b
+d <- 1:10
+```
+
+`a`, `b` and `c` share the same memory address and `d` has a different one.
+
+```{r}
+objs <- list(a, b, c, d)
+obj_addrs(objs)
+```
+
+However, for `d`, it's a bit different. They share different memory addresses.
+
+```{r}
+obj_addr(a)
+obj_addr(d)
+```
+
+That would think that since the memory address is different, then the memory is duplicated whenever you create the same two objects with different names:
+
+```{r}
+rm(list = ls())
+pryr::mem_change(y <- 1:10)
+obj_addr(y)
+pryr::mem_change(z <- 1:10)
+obj_addr(z)
+```
+
+This is still a pending question asked [here](https://twitter.com/cimentadaj/status/1129047253346332674)
+
+
+```{r}
+pryr::mem_used()
+pryr::mem_change(a <- 1:10)
+pryr::mem_change(b <- a)
+pryr::mem_used()
+```
