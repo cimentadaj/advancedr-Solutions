@@ -134,3 +134,4 @@ pryr::mem_change(a <- 1:10)
 pryr::mem_change(b <- a)
 pryr::mem_used()
 ```
+
