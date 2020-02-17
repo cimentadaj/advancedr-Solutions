@@ -7,6 +7,10 @@ output: html_document
 
 ## Quiz answers
 
+```{r }
+library(lobstr)
+```
+
 - Given the following data frame, how do I create a new column called “3” that contains the sum of 1 and 2? You may only use $, not [[. What makes 1, 2, and 3 challenging as variable names?
 
 ```{r}
@@ -32,22 +36,22 @@ Not entirely sure. I though it was the same as `x` because R shared the same mem
 For example, the size of `x` is
 
 ```{r}
-object.size(x)
+obj_size(x)
 ```
 
 That size multiplied by three is
 
 ```{r}
-(object.size(x) * 3)
+(obj_size(x) * 3)
 ```
 
 and the size of `y` is
 
 ```{r}
-object.size(y)
+obj_size(y)
 ```
 
-There seems to be a small diference which I am not sure where it comes from.
+There seems to be a small diference which I am not sure where it comes from. I think the difference comes from the space occupied by the list function.
 
 
 - On which line does `a` get copied in the following example?
@@ -58,7 +62,7 @@ b <- a
 b[[1]] <- 10
 ```
 
-I'm not entirely sure. I know that for assignments (`<-`) there is an intermediate copy being made in the first line but I'm not sure whether the refer to this one. However, I do know that in the second line `b` and `a` are the same object.
+I'm not entirely sure. I know that for assignments (`<-`) there is an intermediate copy being made in the first line but I'm not sure whether to refer to this one. However, I do know that in the second line `b` and `a` are the same object.
 
 ```{r}
 a <- c(1, 5, 3, 2)
@@ -67,6 +71,7 @@ b <- a
 .Internal(inspect(a))
 .Internal(inspect(b))
 ```
+
 Both have the same memory signature, thus occupying the same space. Moreover, once `b` is different, the memory signature changes.
 
 ```{r}
@@ -83,7 +88,8 @@ pryr::mem_change(a <- 1:10)
 pryr::mem_change(b <- a)
 lobstr::mem_used()
 ```
-It seems like it does! However, I presume this might be extra space only allocated to the new name because it's much smaller than the increase of assigning `a`. If `a` would be copied all over again, then I assume we would see the same increas in memory.
+
+It seems like it does! However, I presume this might be extra space only allocated to the new name because it's much smaller than the increase of assigning `a`. If `a` would be copied all over again, then I assume we would see the same increase in memory.
 
 ```{r}
 library(lobstr)
@@ -95,10 +101,12 @@ Exercises 2.2.2
 - Explain the relationship between a, b, c and d in the following code:
 
 ```{r}
+
 a <- 1:10
 b <- a
 c <- b
 d <- 1:10
+
 ```
 
 `a`, `b` and `c` share the same memory address and `d` has a different one.
@@ -114,24 +122,104 @@ However, for `d`, it's a bit different. They share different memory addresses.
 obj_addr(a)
 obj_addr(d)
 ```
-
 That would think that since the memory address is different, then the memory is duplicated whenever you create the same two objects with different names:
 
 ```{r}
+
 rm(list = ls())
 pryr::mem_change(y <- 1:10)
 obj_addr(y)
 pryr::mem_change(z <- 1:10)
 obj_addr(z)
-```
 
-This is still a pending question asked [here](https://twitter.com/cimentadaj/status/1129047253346332674)
+```
 
 
 ```{r}
-pryr::mem_used()
+# This should return the same address but increase in memory due to the name
+# binding.
+
+# First create the environment hash table for all name bindings **and** `a`
+# The total size is `a` + hash table creation, which is why it's so big
+# compared to the increases below.
 pryr::mem_change(a <- 1:10)
+
+# Then bind `a` another name `b`. This should have the same memory address
+# as `a`. The increase in memory should be lower than the operations below
+# because it's pointing to the same memory address.
 pryr::mem_change(b <- a)
-pryr::mem_used()
+# If run, adds more memory, so commenting for now
+# lobstr::obj_addr(a) == lobstr::obj_addr(b)
+
+# m should have a different address from `a` and `b`
+# The increase in 936 B is probably due to the space occupied by the
+# name and the values 1:10
+pryr::mem_change(m <- 1:10)
+# If run, adds more memory, so commenting for now
+# lobstr::obj_addr(a) == lobstr::obj_addr(m)
+
+# That is why running the same below will always add the same thing
+pryr::mem_change(p <- 1:10)
+pryr::mem_change(u <- 1:10)
+pryr::mem_change(i <- 1:10)
+
 ```
 
+The question asked [here](https://twitter.com/cimentadaj/status/1129047253346332674) helped to achieve that.
+
+The following code accesses the mean function in multiple ways. Do they all point to the same underlying function object? Verify this with lobstr::obj_addr().
+
+```{r }
+all_means <- list(
+  mean,
+  base::mean,
+  get("mean"),
+  evalq(mean),
+  match.fun("mean")
+)
+
+all_adr <- lobstr::obj_addrs(all_means)
+
+all(all_adr[1] == all_adr)
+```
+
+By default, base R data import functions, like read.csv(), will automatically convert non-syntactic names to syntactic ones. Why might this be problematic? What option allows you to suppress this behaviour?
+
+You can set `make.names` equal to `FALSE` to avoid this problem. One case that I can think of for why `read.csv` shouldn't convert to syntactic is that this varies by the locale of the computer. Meaning that you might get different results on different computers if `make.names` is applied. Another problem is that `make.names` converts non-supported characters to `.`. For example, if you had a column called `@` with the email of people, make names with change that to `X.`:
+
+```{r }
+make.names("@")
+```
+
+What rules does make.names() use to convert non-syntactic names into syntactic ones?
+
+If it starts with a dot followed by a number or a underscore, the character "X" is prepended.
+
+```{r }
+make.names(".2")
+make.names("_.2")
+```
+
+All invalid characters are translated to ".". 
+
+```{r }
+make.names("random_name_with_@")
+```
+
+A missing value is translated to "NA".  Names which match R keywords have a dot appended to them.
+
+```{r }
+make.names("if")
+```
+
+Duplicated values are altered by make.unique.
+
+```{r }
+make.names(c("c", "c"), unique = TRUE)
+```
+
+I slightly simplified the rules that govern syntactic names. Why is .123e1 not a syntactic name? Read ?make.names for the full details.
+
+Because it beings with a `.` followed by a number. `make.names` forbids that. Quoting from `make.names`:
+
+- If it starts with a dot followed by a number or a underscore, the character "X" is prepended.
