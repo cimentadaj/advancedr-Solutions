@@ -98,7 +98,7 @@ set.seed(1014)
 
 Exercises 2.2.2
 
-- Explain the relationship between a, b, c and d in the following code:
+1. Explain the relationship between a, b, c and d in the following code:
 
 ```{r}
 
@@ -167,7 +167,9 @@ pryr::mem_change(i <- 1:10)
 
 The question asked [here](https://twitter.com/cimentadaj/status/1129047253346332674) helped to achieve that.
 
-The following code accesses the mean function in multiple ways. Do they all point to the same underlying function object? Verify this with lobstr::obj_addr().
+Exercises 2.2.2
+
+2. The following code accesses the mean function in multiple ways. Do they all point to the same underlying function object? Verify this with lobstr::obj_addr().
 
 ```{r }
 all_means <- list(
@@ -183,7 +185,7 @@ all_adr <- lobstr::obj_addrs(all_means)
 all(all_adr[1] == all_adr)
 ```
 
-By default, base R data import functions, like read.csv(), will automatically convert non-syntactic names to syntactic ones. Why might this be problematic? What option allows you to suppress this behaviour?
+3. By default, base R data import functions, like read.csv(), will automatically convert non-syntactic names to syntactic ones. Why might this be problematic? What option allows you to suppress this behaviour?
 
 You can set `make.names` equal to `FALSE` to avoid this problem. One case that I can think of for why `read.csv` shouldn't convert to syntactic is that this varies by the locale of the computer. Meaning that you might get different results on different computers if `make.names` is applied. Another problem is that `make.names` converts non-supported characters to `.`. For example, if you had a column called `@` with the email of people, make names with change that to `X.`:
 
@@ -191,7 +193,7 @@ You can set `make.names` equal to `FALSE` to avoid this problem. One case that I
 make.names("@")
 ```
 
-What rules does make.names() use to convert non-syntactic names into syntactic ones?
+4. What rules does make.names() use to convert non-syntactic names into syntactic ones?
 
 If it starts with a dot followed by a number or a underscore, the character "X" is prepended.
 
@@ -218,8 +220,220 @@ Duplicated values are altered by make.unique.
 make.names(c("c", "c"), unique = TRUE)
 ```
 
-I slightly simplified the rules that govern syntactic names. Why is .123e1 not a syntactic name? Read ?make.names for the full details.
+5. I slightly simplified the rules that govern syntactic names. Why is .123e1 not a syntactic name? Read ?make.names for the full details.
 
 Because it beings with a `.` followed by a number. `make.names` forbids that. Quoting from `make.names`:
 
 - If it starts with a dot followed by a number or a underscore, the character "X" is prepended.
+
+
+# Notes
+
+```{r }
+
+# If you define an x
+x <- 1:3
+# Here's its memory address
+cat(tracemem(x), "\n")
+
+# If you modify it, it creates a copy
+x[[1]] <- 2L
+
+# If you bind it to another name, it doesn't create a copy
+# but just points the `y` name to the memory address we just
+# saw.
+y <- x
+
+# However, the moment we modify it, it creates another copy
+y[[3]] <- 4L
+# But further modifications don't copy
+y[[2]] <- 5L
+y[[1]] <- 1L
+
+# The same thing with `z`
+# Doesn't create copy
+z <- y
+# Creates copy after first modification
+z[[1]] <- 3L
+# Doesn't modify
+z[[1]] <- 9L
+z[[3]] <- 4L
+
+
+# For lists, it's slight different because it creates
+# "shallow" copies, reciclyng memory addresses when
+# possible.
+l1 <- list(1, 2, 3)
+
+# No copy made
+l2 <- l1
+# Copy made but only for the third vector
+l2[[3]] <- 3L
+
+ref(l1, l2)
+```
+
+2.3.6 Exercises
+
+1. Why is tracemem(1:10) not useful?
+
+Because it doesn't bind a name to that memory address meaning that you cannot check where the copies are being made. Think of it as occupying a memory address to a millisecond and then it's freed. An example:
+
+```{r }
+# It increases after 1:10 but decreases in the third `mem_used` call
+mem_used(); 1:10; mem_used(); mem_used()
+```
+
+2. Explain why tracemem() shows two copies when you run this code. Hint: carefully look at the difference between this code and the code shown earlier in the section.
+
+```{r }
+x <- c(1L, 2L, 3L)
+tracemem(x)
+
+x[[3]] <- 4
+```
+
+It creates two copies because of modification of value and because of of coercing from an integer vector to a double vector. We could fix the above by just specifying `4` as an integer `4L`.
+
+3. Sketch out the relationship between the following objects:
+
+```{r }
+a <- 1:10
+b <- list(a, a)
+c <- list(b, a, 1:10)
+```
+
+- `b` is a list that contains the same two memory addresses belonging to `a`:
+```{r}
+ref(b)
+```
+
+- `c` is a list that contains the memory address to the list `b` (including the shared memory addresses of `a`), the same memory address for `a` and a new memory address for `1:10`:
+
+```{r}
+ref(c)
+``` 
+
+4. What happens when you run this code?
+
+```{r }
+x <- list(1:10)
+x[[2]] <- x
+```
+
+Draw a picture.
+
+- Creates a memory address for `list`, a memory address for `1:10` and binds it to x.
+- Create a copy of the list `x` and put it in the 2nd slot.
+
+This means that the memory address of `list` is copied but everything else is shared:
+
+```{r }
+ref(x)
+```
+
+It's the same as this:
+
+```{r }
+tracemem(x)
+y <- x
+y[[2]] <- x[[2]]
+
+ref(y)
+```
+
+
+## Notes
+
+Does repeating the same number N times makes the size N times bigger?
+
+```{r }
+# character
+a <- c("a")
+obj_size(a)
+# For character no
+obj_size(rep(a, 100))
+
+# double
+a <- 1
+obj_size(a)
+# For double no
+obj_size(rep(a, 100))
+
+
+# integer
+a <- 1L
+obj_size(a)
+# For integer even less. Is this because it recycles
+# decimals?
+obj_size(rep(a, 100))
+
+
+
+a <- list(1, 2, 3)
+obj_size(a)
+
+b <- rep(a, 3)
+obj_size(b)
+
+ref(b)
+
+```
+
+
+2.4.1 Exercises
+
+1. In the following example, why are object.size(y) and obj_size(y) so radically different? Consult the documentation of object.size().
+
+```{r }
+tst <- list(runif(1e4))
+y <- rep(tst, 100)
+
+object.size(y)
+#> 8005648 bytes
+obj_size(y)
+#> 80,896 B
+```
+
+Simply because `object.size` doesn't take into account that a list has shared references and thus the size doesn't increase linearly.
+
+2. Take the following list. Why is its size somewhat misleading?
+
+```{r}
+funs <- list(mean, sd, var)
+obj_size(funs)
+#> 17,608 B
+```
+
+3. Predict the output of the following code:
+
+```{r }
+a <- runif(1e6)
+# Couldn't do it
+obj_size(a)
+
+b <- list(a, a)
+# Slightly more than a due to a list of length two
+obj_size(b)
+# Check the difference
+(obj_size(b) - obj_size(a)) == obj_size(list(NULL, NULL))
+
+# The same because everything is being reference to: nothing
+# is being created between a and b
+obj_size(a, b)
+
+# Here you're changing the first value of the vector in the first
+# slot of `b`. Maybe you think that changing only a single value
+# will not have an effect, but R makes a complete copy of the first
+# vector simply because of changing this number.
+b[[1]][[1]] <- 10
+# Double the size because of copy-on-modification
+obj_size(b)
+obj_size(a, b)
+
+# Creates another copy and thus the size increases again
+# by around.
+b[[2]][[1]] <- 10
+obj_size(b)
+obj_size(a, b)
+```
