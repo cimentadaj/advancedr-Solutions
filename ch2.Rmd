@@ -413,7 +413,7 @@ a <- runif(1e6)
 obj_size(a)
 
 b <- list(a, a)
-# Slightly more than a due to a list of length two
+# Slightly more due to a list of length two
 obj_size(b)
 # Check the difference
 (obj_size(b) - obj_size(a)) == obj_size(list(NULL, NULL))
@@ -432,8 +432,118 @@ obj_size(b)
 obj_size(a, b)
 
 # Creates another copy and thus the size increases again
-# by around.
+# by around 8B.
 b[[2]][[1]] <- 10
 obj_size(b)
 obj_size(a, b)
 ```
+
+
+## Notes
+
+```{r }
+
+a <- c(1, 2, 3)
+obj_addr(a)
+
+a[[3]] <- 4
+obj_addr(a)
+
+x <- data.frame(matrix(runif(5 * 1e4), ncol = 5))
+medians <- vapply(x, median, numeric(1))
+
+for (i in seq_along(medians)) {
+  x[[i]] <- x[[i]] - medians[[i]]
+}
+
+tracemem(x)
+for (i in seq_along(medians)) {
+  x[[i]] <- x[[i]] - medians[[i]]
+}
+
+y <- as.list(x)
+tracemem(y)
+for (i in seq_along(medians)) {
+  y[[i]] <- y[[i]] - medians[[i]]
+}
+
+
+e1 <- rlang::env(a = 1, b = 2, c = 3)
+e2 <- e1
+
+e1$c <- 4
+
+```
+
+2.5.3 Exercises
+
+1. Explain why the following code doesn’t create a circular list.
+
+```{r }
+x <- list()
+x[[1]] <- x
+```
+
+Because since `x` is being modified, it creates a copy of `x`, effectively changing it's memory address. For example:
+
+```{r}
+x <- list()
+tracemem(x)
+x[[1]] <- x
+```
+
+When you run `ref`, you can see that the initial memory address of `x` is now in the first slot of the list while the list itself was copied and has a different memory address:
+
+```{r}
+ref(x)
+```
+
+2. Wrap the two methods for subtracting medians into two functions, then use the ‘bench’ package (Hester 2018) to carefully compare their speeds. How does performance change as the number of columns increase?
+
+```{r }
+slow_m <- function(dt) {
+  all_medians <- vapply(dt, median, numeric(1))
+  for (i in seq_along(all_medians)) {
+    dt[[i]] <- dt[[i]] - all_medians[i]
+  }
+  dt
+}
+
+fast_m <- function(dt) {
+  all_medians <- vapply(dt, median, numeric(1))
+  for (i in seq_along(all_medians)) {
+    dt[[i]] <- dt[[i]] - all_medians[i]
+  }
+  as.data.frame(dt)
+}
+
+res <- bench::press(
+  col = seq(5, 2000, 50),
+  {
+    dt <- data.frame(matrix(runif(5 * 1e6), ncol = col))
+    dl <- as.list(dt)
+    bench::mark(
+      min_iterations = 5,
+      slow_m(dt),
+      fast_m(dl)
+    )
+  }
+)
+
+res %>%
+  mutate(expression = as.character(expression)) %>% 
+  ggplot(aes(col, median, color = expression)) +
+  geom_smooth()
+```
+
+3. What happens if you attempt to use tracemem() on an environment?
+
+```{r }
+tracemem(rlang::env())
+```
+
+`tracemem` is only useful for things which are copied and modified, since that would allow us to look at the memory trace. As the `tracemem` docs says:
+
+> It is not possible to trace functions, as this would conflict with trace and it is not useful to trace NULL, environments, promises, weak references, or external pointer objects, as these are not duplicated.
+
+
