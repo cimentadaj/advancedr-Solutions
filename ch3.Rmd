@@ -1,0 +1,71 @@
+---
+title: 'Chapter 3 answers'
+author: Jorge Cimentada
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r knitr-setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.path = "../figs/",
+                      fig.align = "center",
+                      fig.asp = 0.618,
+                      out.width = "80%")
+```
+
+
+- 3.2.5 Exercises
+
+1. How do you create raw and complex scalars? (See ?raw and ?complex.)
+
+You can create raw vectors with:
+
+```{r}
+# create from scratch (empty, 10 is the length)
+raw(10)
+
+# or convert from existing vectors
+as.raw(c(99L, 2L, 10L))
+```
+
+You can create complex vectors:
+
+```{r }
+z <- complex(real = stats::rnorm(100), imaginary = stats::rnorm(100))
+z
+```
+
+2. Test your knowledge of the vector coercion rules by predicting the output of the following uses of c():
+
+```{r }
+# Output: numeric
+c(1, FALSE)
+
+# Output: character
+c("a", 1)
+
+# Output: numeric
+c(TRUE, 1L)
+```
+
+3. Why is 1 == "1" true? Why is -1 < FALSE true? Why is "one" < 2 false?
+
+```{r}
+# Why is this true?
+# because as.numeric("1") is 1
+1 == "1"
+
+# Because FALSE is zero
+-1 < FALSE
+
+#  MISSING THISSS
+"one" < 2
+
+```
+
+
+4. Why is the default missing value, NA, a logical vector? What’s special about logical vectors? (Hint: think about c(FALSE, NA_character_).)
+
+5. Precisely what do is.atomic(), is.numeric(), and is.vector() test for?
