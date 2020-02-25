@@ -68,4 +68,133 @@ c(TRUE, 1L)
 
 4. Why is the default missing value, NA, a logical vector? What’s special about logical vectors? (Hint: think about c(FALSE, NA_character_).)
 
+* Taken from https://advanced-r-solutions.rbind.io/vectors.html
+
+The presence of missing values shouldn´t affect the type of an object. Recall that there is a type-hierarchy for coercion from character >> double >> integer >> logical. When combining NAs with other atomic types, the NAs will be coerced to integer (NA_integer_), double (NA_real_) or character (NA_character_) and not the other way round. If NA was a character and added to a set of other values all of these would be coerced to character as well.
+
 5. Precisely what do is.atomic(), is.numeric(), and is.vector() test for?
+
+`is.atomic` tests if an object is a vector. For example:
+
+```{r }
+is.atomic(list()) # FALSE
+is.atomic(numeric()) # TRUE
+```
+
+`is.numeric` tests whether an object is numeric (either double or integer)
+
+```{r}
+is.numeric(integer()) # TRUE
+is.numeric(double()) # TRUE
+```
+
+Paradoxically, `is.vector` tests whether something is a vector **or** a list or an expression:
+
+```{r}
+is.vector(list()) # TRUE, what?
+is.vector(character()) # TRUE, expected
+is.vector(expression(a + b)) # TRUE, but why?
+```
+
+However, if a vector an attribute other than names, it oddly returns `FALSE`.
+
+```{r }
+
+list_like <- structure(list(a = 1:10), class = "list", random = "random_class")
+is.vector(list_like)
+rlang::is_vector(list_like)
+
+```
+
+> If ‘mode = "any"’, is.vector may return TRUE for the atomic modes, list and expression.  For any mode, it will return FALSE if ‘x’ has any attributes except names.  (This is incompatible with S.)  On the other hand, as.vector removes _all_ attributes including names for results of atomic mode (but not those of mode ‘"list"’ nor ‘"expression"’).
+
+
+3.3.4 Exercises
+
+- How is setNames() implemented? How is unname() implemented? Read the source code.
+
+`setNames` replaces the `names` attribute of the object. For example:
+
+```{r}
+setNames(1:10, letters[1:10])
+```
+
+is equivalent to
+
+```{r }
+x <- 1:10
+names(x) <- letters[1:10]
+x
+```
+
+However, a one liner might be:
+
+```{r }
+structure(1:10, names = letters[1:10])
+```
+
+On the other hand, `unname` inspects the names attribute of the object and sets it to `NULL`. It has some extra definition to remove the `dimnames`, which is only useful when working with arrays.
+
+- What does dim() return when applied to a 1-dimensional vector? When might you use NROW() or NCOL()?
+
+`dim(1:10)` returns `NULL` because there is not such attribute defined.
+
+`NROW` and `NCOL` are safe alternatives to running `nrow` and `ncol` on both one dimension and two dimension objects. For example:
+
+```{r}
+# No nrow's, but figures out it is a vector of length 10
+NROW(1:10)
+
+# has rows, so returns it
+NROW(mtcars)
+
+# Treats `1:10` as if it has 1 column
+NCOL(1:10)
+
+# Returns normal columns
+NCOL(mtcars)
+```
+
+- How would you describe the following three objects? What makes them different from 1:5?
+
+```{r}
+x1 <- array(1:5, c(1, 1, 5))
+x2 <- array(1:5, c(1, 5, 1))
+x3 <- array(1:5, c(5, 1, 1))
+```
+
+The dimensiones of the object. `x1` has 5 dimensions of 1 row and 1 column. `x2` has 1 dimension of a matrix with 1 row and 5 columns. Finally, `x3` has a matrix of 5 rows with 1 column in a single dimension. See the difference:
+
+```{r }
+dim(x1)
+dim(x2)
+dim(x3)
+```
+
+You can eve create them from scratch:
+
+```{r}
+x <- 1:5
+dim(x) <- c(1, 1, 5)
+x
+```
+
+- An early draft used this code to illustrate structure():
+
+```{r }
+structure(1:5, comment = "my attribute")
+#> [1] 1 2 3 4 5
+```
+
+But when you print that object you don’t see the comment attribute. Why? Is the attribute missing, or is there something else special about it? (Hint: try using help.)
+
+The real question is why these two examples differ:
+
+```{r }
+structure(1:5, comment = "my attribute") # Doesn't print
+structure(1:5, vec = "whatever") # Does print
+```
+
+Here's the answer from the help page of `attributes`:
+
+> Note that some attributes (namely class, **comment**, dim, dimnames, names, row.names and tsp) are treated specially and have restrictions on the values which can be set.  (Note that this is not true of levels which should be set for factors via the levels replacement function.)
